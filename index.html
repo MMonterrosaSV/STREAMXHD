@@ -23,6 +23,7 @@
       flex: 1;
       aspect-ratio: 16 / 9;
       background: #000;
+      overflow: hidden;
     }
     iframe {
       position: absolute;
@@ -76,10 +77,12 @@
       src="https://streamxhd.com/live1.php?stream=mligacampeones"
       title="Live Stream"
       allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-      allowfullscreen>
+      allowfullscreen
+      sandbox="allow-scripts allow-same-origin allow-presentation"
+      referrerpolicy="no-referrer"
+      loading="lazy">
     </iframe>
   </div>
-
   <div class="bottom-bar">
     <h2 id="title">Live Stream — M+ Liga de Campeones</h2>
     <div class="channels">
@@ -88,18 +91,42 @@
       <button data-stream="daznlaliga" data-name="DAZN LA LIGA">DAZN LA LIGA</button>
     </div>
   </div>
-
   <script>
     const iframe = document.getElementById('stream');
     const title  = document.getElementById('title');
     const buttons = document.querySelectorAll('.channels button');
 
+    // Block any attempts by the iframe to open new windows / popups
+    window.open = function () {
+      console.warn('Popup blocked');
+      return null;
+    };
+
+    // Prevent the page from being redirected by the iframe
+    window.addEventListener('beforeunload', (e) => {
+      // Optional: uncomment the next line if you want a confirmation dialog
+      // e.preventDefault();
+    });
+
     function setChannel(stream, name) {
-      iframe.src = `https://streamxhd.com/live1.php?stream=${stream}`;
+      // Re-create the iframe completely to clear any previous scripts / ads
+      const newIframe = document.createElement('iframe');
+      newIframe.id = 'stream';
+      newIframe.src = `https://streamxhd.com/live1.php?stream=${stream}`;
+      newIframe.title = 'Live Stream';
+      newIframe.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+      newIframe.allowFullscreen = true;
+      newIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation');
+      newIframe.referrerPolicy = 'no-referrer';
+      newIframe.loading = 'lazy';
+
+      // Replace the old iframe
+      iframe.parentNode.replaceChild(newIframe, iframe);
+      // Update the reference
+      window.iframe = newIframe; // keep global reference if needed
+
       title.textContent = `Live Stream — ${name}`;
       document.title = `Live Stream — ${name}`;
-
-      // Update URL hash so the GitHub Pages link reflects the channel
       history.replaceState(null, '', `#${stream}`);
 
       buttons.forEach(btn => {
@@ -113,13 +140,12 @@
       });
     });
 
-    // Restore channel from URL hash on load (e.g. yourpage.github.io/#mlaliga)
+    // Restore channel from URL hash on load
     const hash = location.hash.slice(1);
     const match = [...buttons].find(b => b.dataset.stream === hash);
     if (match) {
       setChannel(match.dataset.stream, match.dataset.name);
     } else {
-      // default
       setChannel('mligacampeones', 'M+ Liga de Campeones');
     }
   </script>
