@@ -83,6 +83,7 @@
       loading="lazy">
     </iframe>
   </div>
+
   <div class="bottom-bar">
     <h2 id="title">Live Stream — M+ Liga de Campeones</h2>
     <div class="channels">
@@ -91,25 +92,64 @@
       <button data-stream="daznlaliga" data-name="DAZN LA LIGA">DAZN LA LIGA</button>
     </div>
   </div>
-  <script>
-    const iframe = document.getElementById('stream');
-    const title  = document.getElementById('title');
-    const buttons = document.querySelectorAll('.channels button');
 
-    // Block any attempts by the iframe to open new windows / popups
+  <script>
+    const title   = document.getElementById('title');
+    const buttons = document.querySelectorAll('.channels button');
+    const allowedStreams = new Set([...buttons].map(b => b.dataset.stream));
+
+    // Block any window.open() (pop-ups)
     window.open = function () {
       console.warn('Popup blocked');
       return null;
     };
 
-    // Prevent the page from being redirected by the iframe
+    // Only allow navigation that stays on this same page + one of our channels
+    // (hash change). Everything else is blocked.
+    const originalPushState    = history.pushState.bind(history);
+    const originalReplaceState = history.replaceState.bind(history);
+
+    history.pushState = function (state, title, url) {
+      if (isAllowedChannelChange(url)) {
+        return originalPushState(state, title, url);
+      }
+      console.warn('Blocked external navigation attempt');
+    };
+
+    history.replaceState = function (state, title, url) {
+      if (isAllowedChannelChange(url)) {
+        return originalReplaceState(state, title, url);
+      }
+      console.warn('Blocked external navigation attempt');
+    };
+
+    function isAllowedChannelChange(url) {
+      if (!url) return true; // same-page calls without url are fine
+      try {
+        const u = new URL(url, location.href);
+        // Must stay on the exact same origin + path
+        if (u.origin !== location.origin || u.pathname !== location.pathname) {
+          return false;
+        }
+        // Hash must be empty or one of our known streams
+        const hash = u.hash.slice(1);
+        return hash === '' || allowedStreams.has(hash);
+      } catch {
+        return false;
+      }
+    }
+
+    // Also catch direct location changes
     window.addEventListener('beforeunload', (e) => {
-      // Optional: uncomment the next line if you want a confirmation dialog
-      // e.preventDefault();
+      // The only way to leave this page should be the user closing the tab
+      // or typing a new address. We don't prevent that.
     });
 
     function setChannel(stream, name) {
-      // Re-create the iframe completely to clear any previous scripts / ads
+      if (!allowedStreams.has(stream)) return;
+
+      // Completely destroy & recreate the iframe (clears any injected scripts)
+      const oldIframe = document.getElementById('stream');
       const newIframe = document.createElement('iframe');
       newIframe.id = 'stream';
       newIframe.src = `https://streamxhd.com/live1.php?stream=${stream}`;
@@ -120,13 +160,12 @@
       newIframe.referrerPolicy = 'no-referrer';
       newIframe.loading = 'lazy';
 
-      // Replace the old iframe
-      iframe.parentNode.replaceChild(newIframe, iframe);
-      // Update the reference
-      window.iframe = newIframe; // keep global reference if needed
+      oldIframe.parentNode.replaceChild(newIframe, oldIframe);
 
       title.textContent = `Live Stream — ${name}`;
       document.title = `Live Stream — ${name}`;
+
+      // This is the ONLY allowed "redirect" – same page, different channel hash
       history.replaceState(null, '', `#${stream}`);
 
       buttons.forEach(btn => {
