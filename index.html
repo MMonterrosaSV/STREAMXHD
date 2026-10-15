@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,26 +8,22 @@
     * {
       box-sizing: border-box;
     }
-
     body {
       margin: 0;
       background: #111;
       font-family: Arial, sans-serif;
       color: white;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
-
-    h2 {
-      text-align: center;
-      padding: 12px;
-    }
-
     .player {
       position: relative;
       width: 100%;
+      flex: 1;
       aspect-ratio: 16 / 9;
       background: #000;
     }
-
     iframe {
       position: absolute;
       inset: 0;
@@ -36,14 +31,48 @@
       height: 100%;
       border: 0;
     }
+    .bottom-bar {
+      background: #1a1a1a;
+      padding: 14px 12px 18px;
+      text-align: center;
+      border-top: 1px solid #333;
+    }
+    .bottom-bar h2 {
+      margin: 0 0 12px;
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+    .channels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+    .channels button {
+      background: #2a2a2a;
+      color: #eee;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .channels button:hover {
+      background: #3a3a3a;
+      border-color: #666;
+    }
+    .channels button.active {
+      background: #e63946;
+      border-color: #e63946;
+      color: white;
+    }
   </style>
 </head>
 <body>
-
-  <h2>Live Stream</h2>
-
   <div class="player">
     <iframe
+      id="stream"
       src="https://streamxhd.com/live1.php?stream=mligacampeones"
       title="Live Stream"
       allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
@@ -51,5 +80,48 @@
     </iframe>
   </div>
 
+  <div class="bottom-bar">
+    <h2 id="title">Live Stream — M+ Liga de Campeones</h2>
+    <div class="channels">
+      <button data-stream="mligacampeones" data-name="M+ Liga de Campeones">M+ Liga de Campeones</button>
+      <button data-stream="mlaliga" data-name="M+ LA LIGA">M+ LA LIGA</button>
+      <button data-stream="daznlaliga" data-name="DAZN LA LIGA">DAZN LA LIGA</button>
+    </div>
+  </div>
+
+  <script>
+    const iframe = document.getElementById('stream');
+    const title  = document.getElementById('title');
+    const buttons = document.querySelectorAll('.channels button');
+
+    function setChannel(stream, name) {
+      iframe.src = `https://streamxhd.com/live1.php?stream=${stream}`;
+      title.textContent = `Live Stream — ${name}`;
+      document.title = `Live Stream — ${name}`;
+
+      // Update URL hash so the GitHub Pages link reflects the channel
+      history.replaceState(null, '', `#${stream}`);
+
+      buttons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.stream === stream);
+      });
+    }
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        setChannel(btn.dataset.stream, btn.dataset.name);
+      });
+    });
+
+    // Restore channel from URL hash on load (e.g. yourpage.github.io/#mlaliga)
+    const hash = location.hash.slice(1);
+    const match = [...buttons].find(b => b.dataset.stream === hash);
+    if (match) {
+      setChannel(match.dataset.stream, match.dataset.name);
+    } else {
+      // default
+      setChannel('mligacampeones', 'M+ Liga de Campeones');
+    }
+  </script>
 </body>
 </html>
